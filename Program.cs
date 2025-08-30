@@ -4,11 +4,12 @@ using Microsoft.Extensions.DependencyInjection;
 
 [assembly: System.Runtime.Versioning.SupportedOSPlatform("browser")]
 
-using var p = new ServiceCollection()
+using var sp = new ServiceCollection()
     .AddKeyedSingleton<JSObject>("Juris", Juris.Bind())
     .AddKeyedSingleton<JSObject>("Window.Object", Window.Object.Bind())
     .AddKeyedTransient<JSObject>("{}", (p, _) => Window.Reflect.Construct(p.GetRequiredKeyedService<JSObject>("Window.Object"), []))
     .BuildServiceProvider();
+Func<JSObject> p = () => sp.GetRequiredKeyedService<JSObject>("{}");
 
 Func<JSObject, JSObject, JSObject> App = (props, context) =>
 {
@@ -32,7 +33,7 @@ Func<JSObject, JSObject, JSObject> App = (props, context) =>
     });
 };
 
-using var juris = Window.Reflect.Construct(p.GetRequiredKeyedService<JSObject>("Juris"), [
+using var juris = Window.Reflect.Construct(sp.GetRequiredKeyedService<JSObject>("Juris"), [
     new Obj(p)
         .With("components", new Obj(p).With("App", App))
         .With("layout", new Obj(p).With("App", new Obj(p)))
@@ -40,9 +41,9 @@ using var juris = Window.Reflect.Construct(p.GetRequiredKeyedService<JSObject>("
 
 Juris.Render(juris, "#app");
 
-class Obj(IServiceProvider p)
+class Obj(Func<JSObject> p)
 {
-    readonly JSObject JSObject = p.GetRequiredKeyedService<JSObject>("{}");
+    readonly JSObject JSObject = p();
     public static implicit operator JSObject(Obj obj) => obj.JSObject;
 
     internal Obj With(string key, string value) { JSObject.SetProperty(key, value); return this; }
